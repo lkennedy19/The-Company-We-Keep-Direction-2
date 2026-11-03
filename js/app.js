@@ -205,7 +205,8 @@
     setTimeout(layout, 0);
   });
 
-  $('savePng').addEventListener('click', function () {
+  var saveBtn = $('savePng'); // absent where downloads are not allowed
+  if (saveBtn) saveBtn.addEventListener('click', function () {
     canvas.toBlob(function (blob) {
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
