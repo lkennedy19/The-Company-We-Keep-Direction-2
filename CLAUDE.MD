@@ -11,7 +11,7 @@ Before making **any** change to this codebase:
 
 ## What This App Is
 
-Magnet / Mirror: a static, no-build browser tool for designers. Upload any SVG (or use a preset/word), repeat it across a grid, and animate it around a point that follows the cursor or wanders on its own. Modes: Magnet, plus three candidate Mirror treatments (Twin, Mimic, Pool). Open `index.html` directly or serve the folder statically.
+Magnet / Mirror: a static, no-build browser tool for designers. Upload any SVG (or use a preset/word), repeat it across a grid, and animate it around a point that follows the cursor or wanders on its own. Modes: Magnet (elements turn toward the point) and Mirror (the point carries an invisible mirror line reflecting one side of the grid onto the other). Several uploaded SVGs can be scattered across the grid. Open `index.html` directly or serve the folder statically.
 
 ---
 
@@ -28,17 +28,16 @@ Magnet / Mirror: a static, no-build browser tool for designers. Upload any SVG (
 ├── css/styles.css          # All styles; design tokens at the top
 └── js/                     # Classic scripts sharing the window.MM namespace (works over file://)
     ├── util.js             # Math + 2x2 matrix helpers, magnet field angle
-    ├── grid.js             # Builds the centred element grid
+    ├── grid.js             # Infinite, seeded grid: cell positions + per-cell random values
     ├── pointer.js          # Cursor / auto-wander target point
     ├── renderer.js         # Draws sprite per element using its matrix + alpha
     ├── shapes.js           # Presets, word source, SVG loader, tinted sprite
+    ├── shape-set.js        # Current shapes: one preset or a list of uploaded SVGs
     ├── controls.js         # Builds settings UI from param specs
     ├── app.js              # Tabs, panel, resize, animation loop
-    └── modes/              # One file per mode: { id, label, blurb, params, createState, reset(els, state), update }
+    └── modes/              # One file per mode: { id, label, blurb, params, createState, reset(els, state), update → layers? }
         ├── magnet.js
-        ├── mirror-twin.js
-        ├── mirror-mimic.js
-        └── mirror-pool.js
+        └── mirror.js
 ```
 
 ---

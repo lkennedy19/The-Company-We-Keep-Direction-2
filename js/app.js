@@ -1,8 +1,7 @@
-/* Wires it together: tabs, settings panel, shape loading, resize and the animation loop. */
+/* Wires it together: tabs, settings panel, shapes, resize and the animation loop. */
 (function (MM) {
   'use strict';
-  var M = MM.math;
-  var modes = [MM.modes.magnet, MM.modes.twin, MM.modes.mimic, MM.modes.pool];
+  var modes = [MM.modes.magnet, MM.modes.mirror];
   var presets = MM.shapes.presets;
 
   var $ = function (id) { return document.getElementById(id); };
@@ -10,7 +9,7 @@
 
   // ---------- state ----------
   var shared = {
-    preset: 'word', word: 'KEEP', keepColors: false,
+    word: 'KEEP', keepColors: false,
     gapX: presets.word.gapX, gapY: presets.word.gapY, size: presets.word.size,
     motion: 'hybrid', tempo: 1, follow: 8,
     fg: '#ffffff', bg: '#000000'
@@ -19,14 +18,16 @@
   modes.forEach(function (m) { params[m.id] = MM.controls.defaults(m.params); });
 
   var mode = modes[0], modeState = mode.createState();
-  var source = null, sprite = null, uploadedName = '';
-  var els = [], w = 0, h = 0, dpr = 1;
+  var sprites = [], seed = 1;
+  var grid = null, w = 0, h = 0, dpr = 1;
   var pointer = new MM.Pointer(canvas);
+  var shapes = new MM.ShapeSet(function () { rebuildSprites(); renderShapeUI(); });
+  var shapePanel = null;
 
   // ---------- settings specs ----------
   var shapeSpecs = [
-    { key: 'word', label: 'Word', type: 'text', value: shared.word, maxLength: 16, show: function (v) { return v.preset === 'word'; } },
-    { key: 'keepColors', label: 'Keep SVG colours', type: 'toggle', value: false, show: function (v) { return v.preset === 'upload'; } }
+    { key: 'word', label: 'Word', type: 'text', maxLength: 16, show: function () { return shapes.preset === 'word'; } },
+    { key: 'keepColors', label: 'Keep SVG colours', type: 'toggle', show: function () { return shapes.preset === 'upload'; } }
   ];
   var gridSpecs = [
     { key: 'gapX', label: 'Column spacing', type: 'range', min: 18, max: 260, step: 1, unit: 'px' },
@@ -43,78 +44,89 @@
     { key: 'bg', label: 'Background', type: 'color' }
   ];
 
-  // ---------- shape ----------
+  // ---------- shapes ----------
   function setStatus(msg, isError) {
     var s = $('shapeStatus');
     s.textContent = msg || '';
     s.classList.toggle('is-error', !!isError);
   }
 
-  function rebuildSprite() {
-    if (source) sprite = MM.shapes.makeSprite(source, shared.fg, shared.preset === 'upload' && shared.keepColors);
+  function rebuildSprites() {
+    var keep = shapes.preset === 'upload' && shared.keepColors;
+    sprites = shapes.sources().map(function (src) { return MM.shapes.makeSprite(src, shared.fg, keep); });
   }
 
-  function useSource(src) { source = src; rebuildSprite(); }
-
-  function selectPreset(key) {
-    shared.preset = key;
+  function choosePreset(key) {
     var pr = presets[key];
     if (pr) {
       shared.gapX = pr.gapX; shared.gapY = pr.gapY; shared.size = pr.size;
       buildSharedPanels();
       layout();
-      setStatus('');
-      if (pr.word) useSource(MM.shapes.wordSource(shared.word));
-      else MM.shapes.loadSvg(pr.svg).then(useSource);
     }
-    renderPresetButtons();
+    setStatus('');
+    shapes.usePreset(key);
   }
 
-  function loadFile(file) {
-    if (!file) return;
-    if (!/\.svg$/i.test(file.name) && file.type !== 'image/svg+xml') {
-      setStatus('Please choose an .svg file.', true);
-      return;
-    }
-    file.text().then(MM.shapes.loadSvg).then(function (src) {
-      uploadedName = file.name;
-      shared.preset = 'upload';
-      useSource(src);
-      renderPresetButtons();
-      buildSharedPanels();
-      setStatus('Using ' + file.name);
-    }).catch(function (err) { setStatus(err.message, true); });
+  function addFiles(files) {
+    if (!files || !files.length) return;
+    shapes.addFiles(files).then(function (r) { setStatus(r.message, r.error); });
   }
 
-  function renderPresetButtons() {
+  function renderShapeUI() {
     var wrap = $('presets');
     wrap.innerHTML = '';
-    Object.keys(presets).concat(uploadedName ? ['upload'] : []).forEach(function (key) {
+    var keys = Object.keys(presets).concat(shapes.uploads.length ? ['upload'] : []);
+    keys.forEach(function (key) {
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'seg__btn';
-      b.textContent = key === 'upload' ? 'Upload' : presets[key].label;
-      b.setAttribute('aria-pressed', String(shared.preset === key));
-      b.addEventListener('click', function () {
-        if (key === 'upload') return;
-        selectPreset(key);
-      });
+      b.textContent = key === 'upload' ? 'Uploads (' + shapes.uploads.length + ')' : presets[key].label;
+      b.setAttribute('aria-pressed', String(shapes.preset === key));
+      b.addEventListener('click', function () { choosePreset(key); });
       wrap.appendChild(b);
     });
+
+    var list = $('uploadList');
+    list.innerHTML = '';
+    list.hidden = shapes.preset !== 'upload';
+    if (!list.hidden) {
+      shapes.uploads.forEach(function (u, i) {
+        var li = document.createElement('li');
+        li.className = 'thumb';
+        li.title = u.name;
+        var c = document.createElement('canvas');
+        c.width = c.height = 96;
+        var sp = sprites[i];
+        if (sp) {
+          var g = c.getContext('2d'), s = 76;
+          var tw = sp.aspect >= 1 ? s : s * sp.aspect, th = sp.aspect >= 1 ? s / sp.aspect : s;
+          g.drawImage(sp.canvas, (96 - tw) / 2, (96 - th) / 2, tw, th);
+        }
+        var rm = document.createElement('button');
+        rm.type = 'button';
+        rm.className = 'thumb__remove';
+        rm.textContent = '×';
+        rm.setAttribute('aria-label', 'Remove ' + u.name);
+        rm.addEventListener('click', function () { shapes.remove(i); setStatus(''); });
+        li.append(c, rm);
+        list.appendChild(li);
+      });
+    }
+    if (shapePanel) shapePanel.refresh();
   }
 
   // ---------- panels ----------
   function buildSharedPanels() {
-    MM.controls.build($('shapeParams'), shapeSpecs, shared, function (key) {
-      if (key === 'word') useSource(MM.shapes.wordSource(shared.word));
-      if (key === 'keepColors') rebuildSprite();
+    shapePanel = MM.controls.build($('shapeParams'), shapeSpecs, shared, function (key) {
+      if (key === 'word') shapes.setWord(shared.word);
+      if (key === 'keepColors') { rebuildSprites(); renderShapeUI(); }
     });
     MM.controls.build($('gridParams'), gridSpecs, shared, function (key) {
       if (key !== 'size') layout();
     });
     MM.controls.build($('motionParams'), motionSpecs, shared, function () {});
     MM.controls.build($('colorParams'), colorSpecs, shared, function (key) {
-      if (key === 'fg') rebuildSprite();
+      if (key === 'fg') { rebuildSprites(); renderShapeUI(); }
       document.documentElement.style.setProperty('--stage-bg', shared.bg);
     });
   }
@@ -134,17 +146,7 @@
       b.className = 'tab';
       b.setAttribute('role', 'tab');
       b.setAttribute('aria-selected', String(m === mode));
-      var parts = m.label.split(' · ');
-      b.innerHTML = '';
-      var main = document.createElement('span');
-      main.textContent = parts[0];
-      b.appendChild(main);
-      if (parts[1]) {
-        var sub = document.createElement('span');
-        sub.className = 'tab__sub';
-        sub.textContent = parts[1];
-        b.appendChild(sub);
-      }
+      b.textContent = m.label;
       b.addEventListener('click', function () { setMode(m); });
       nav.appendChild(b);
     });
@@ -153,7 +155,7 @@
   function setMode(m) {
     mode = m;
     modeState = m.createState();
-    m.reset(els, modeState);
+    m.reset(grid.els, modeState);
     renderTabs();
     buildModePanel();
     try { localStorage.setItem('mm-mode', m.id); } catch (e) { /* storage unavailable */ }
@@ -166,8 +168,8 @@
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
-    els = MM.grid.build(w, h, shared.gapX, shared.gapY);
-    mode.reset(els, modeState);
+    grid = MM.grid.create(w, h, shared.gapX, shared.gapY, seed);
+    mode.reset(grid.els, modeState);
   }
 
   // ---------- loop ----------
@@ -176,9 +178,12 @@
     var t = now / 1000, dt = Math.min(0.05, Math.max(0, t - last));
     last = t;
     pointer.update(t, dt, w, h, shared);
-    var env = { w: w, h: h, t: t, dt: dt, tx: pointer.x, ty: pointer.y, cx: w / 2, cy: h / 2 };
-    mode.update(els, env, params[mode.id], modeState);
-    MM.renderer.draw(ctx, els, sprite, shared.size, dpr, shared.bg);
+    var env = {
+      w: w, h: h, t: t, dt: dt, tx: pointer.x, ty: pointer.y, cx: w / 2, cy: h / 2,
+      grid: grid, size: shared.size
+    };
+    var layers = mode.update(grid.els, env, params[mode.id], modeState) || [{ items: grid.els }];
+    MM.renderer.draw(ctx, layers, sprites, shared.size, dpr, shared.bg);
     requestAnimationFrame(frame);
   }
 
@@ -186,8 +191,13 @@
   new ResizeObserver(layout).observe(stage);
 
   $('fileInput').addEventListener('change', function (e) {
-    loadFile(e.target.files[0]);
+    addFiles(e.target.files);
     e.target.value = '';
+  });
+
+  $('shuffle').addEventListener('click', function () {
+    seed += 1;
+    layout();
   });
 
   stage.addEventListener('dragover', function (e) { e.preventDefault(); stage.classList.add('is-drop'); });
@@ -195,7 +205,7 @@
   stage.addEventListener('drop', function (e) {
     e.preventDefault();
     stage.classList.remove('is-drop');
-    loadFile(e.dataTransfer.files[0]);
+    addFiles(e.dataTransfer.files);
   });
 
   $('panelToggle').addEventListener('click', function () {
@@ -229,6 +239,6 @@
   buildModePanel();
   buildSharedPanels();
   layout();
-  selectPreset(shared.preset);
+  choosePreset('word');
   requestAnimationFrame(frame);
 })(window.MM = window.MM || {});

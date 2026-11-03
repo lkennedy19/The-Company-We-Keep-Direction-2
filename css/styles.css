@@ -91,7 +91,6 @@ button, input { font: inherit; color: inherit; }
 }
 .tab:hover { color: var(--fg); }
 .tab[aria-selected="true"] { color: var(--fg); border-color: var(--line-strong); }
-.tab__sub { font-family: var(--mono); font-size: var(--fs-xs); text-transform: none; letter-spacing: 0; }
 
 /* ===== Buttons ===== */
 .btn {
@@ -269,3 +268,27 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
   }
   .panel-open .panel { display: block; }
 }
+
+/* ===== Shape set ===== */
+.shape-actions { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-2); margin-top: var(--sp-2); }
+.shape-actions .btn--upload { margin-top: 0; }
+.thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.thumb { position: relative; aspect-ratio: 1; max-width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--stage-bg); }
+.thumb canvas { display: block; width: 100%; height: 100%; }
+.thumb__remove {
+  position: absolute; top: 2px; right: 2px;
+  width: 20px; height: 20px;
+  padding: 0;
+  border: 0; border-radius: 50%;
+  background: var(--surface); color: var(--fg);
+  font-size: 14px; line-height: 1;
+  cursor: pointer;
+}
+.thumb__remove:hover { background: var(--fg); color: var(--bg); }

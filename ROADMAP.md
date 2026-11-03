@@ -4,14 +4,11 @@ Legend: 🟡 in progress / awaiting review · ~~done~~ (approved)
 
 ## Now
 
-- 🟡 **Magnet / Mirror grid tool v1** — upload any SVG, repeat it across a grid, animate it with a cursor-driven or self-driven point.
+- 🟡 **Magnet / Mirror grid tool v1** — upload SVGs, scatter them across a grid, animate with a cursor-driven or self-driven point.
   - 🟡 Magnet mode (orbit / point field, twist, reach)
-  - 🟡 Mirror exploration — three candidate tabs to choose between:
-    - 🟡 Mirror · Twin — the magnet has a reflected twin on the other half of the grid
-    - 🟡 Mirror · Mimic — elements copy the pointer's direction of travel, spreading outward with delay
-    - 🟡 Mirror · Pool — bottom half reflects the top half like water (lagged, rippling, fading)
-    - (First round — Fold / Kaleido / Ripple — rejected: they read as flipping tiles rather than a mirror)
-  - 🟡 Pick the winning Mirror direction (or a blend) and retire the others
+  - 🟡 Mirror mode — pointer carries an invisible mirror line; one side of the grid is reflected onto the other (glass or water surface, tilt, scatter). No colour/opacity change on the reflection.
+  - 🟡 Multiple SVG uploads, randomly dispersed across the grid, with Shuffle
+  - Explored and rejected: Fold / Kaleido / Ripple (read as flipping tiles, relied on drawn lines), Twin / Mimic / Pool (too close to Magnet; Pool's reflection idea became Mirror)
 
 ## Next
 
