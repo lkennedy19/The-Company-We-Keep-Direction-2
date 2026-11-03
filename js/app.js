@@ -1,47 +1,62 @@
-/* Wires it together: tabs, settings panel, shapes, resize and the animation loop. */
+/* Wires it together: tabs, settings panel, shapes, particles, and the animation loop. */
 (function (MM) {
   'use strict';
   var modes = [MM.modes.magnet, MM.modes.mirror];
-  var presets = MM.shapes.presets;
+  var presets = MM.shapes.presets, palettes = MM.palettes;
+  var STRIDE = MM.GLRenderer.STRIDE;
 
   var $ = function (id) { return document.getElementById(id); };
-  var canvas = $('canvas'), ctx = canvas.getContext('2d'), stage = $('stage');
+  var canvas = $('canvas'), stage = $('stage');
+
+  var renderer = new MM.GLRenderer(canvas);
+  if (!renderer.ok) {
+    $('glError').hidden = false;
+    return;
+  }
 
   // ---------- state ----------
   var shared = {
-    word: 'KEEP', keepColors: false,
-    gapX: presets.word.gapX, gapY: presets.word.gapY, size: presets.word.size,
-    motion: 'hybrid', tempo: 1, follow: 8,
-    fg: '#ffffff', bg: '#000000'
+    word: 'KEEP',
+    spacing: presets.dot.spacing, size: presets.dot.size, sizeVar: 45,
+    goo: 45, weight: 50, soft: 0, relief: 0, grain: 40,
+    paper: palettes[0].paper, ink: palettes[0].ink,
+    motion: 'hybrid', tempo: 1, follow: 6, flow: 3
   };
   var params = {};
   modes.forEach(function (m) { params[m.id] = MM.controls.defaults(m.params); });
 
   var mode = modes[0], modeState = mode.createState();
-  var sprites = [], seed = 1;
-  var grid = null, w = 0, h = 0, dpr = 1;
+  var sprites = [], seed = 1, particles = [], inst = new Float32Array(0);
+  var w = 0, h = 0, dpr = 1;
   var pointer = new MM.Pointer(canvas);
   var shapes = new MM.ShapeSet(function () { rebuildSprites(); renderShapeUI(); });
-  var shapePanel = null;
+  var shapePanel = null, colorPanel = null;
 
   // ---------- settings specs ----------
   var shapeSpecs = [
-    { key: 'word', label: 'Word', type: 'text', maxLength: 16, show: function () { return shapes.preset === 'word'; } },
-    { key: 'keepColors', label: 'Keep SVG colours', type: 'toggle', show: function () { return shapes.preset === 'upload'; } }
+    { key: 'word', label: 'Word', type: 'text', maxLength: 16, show: function () { return shapes.preset === 'word'; } }
   ];
-  var gridSpecs = [
-    { key: 'gapX', label: 'Column spacing', type: 'range', min: 18, max: 260, step: 1, unit: 'px' },
-    { key: 'gapY', label: 'Row spacing', type: 'range', min: 18, max: 260, step: 1, unit: 'px' },
-    { key: 'size', label: 'Element size', type: 'range', min: 6, max: 260, step: 1, unit: 'px' }
+  var particleSpecs = [
+    { key: 'spacing', label: 'Spacing', type: 'range', min: 6, max: 80, step: 1, unit: 'px' },
+    { key: 'size', label: 'Size', type: 'range', min: 2, max: 120, step: 1, unit: 'px' },
+    { key: 'sizeVar', label: 'Size variation', type: 'range', min: 0, max: 90, step: 1, unit: '%' }
+  ];
+  var surfaceSpecs = [
+    { key: 'goo', label: 'Goo', type: 'range', min: 0, max: 100, step: 1, unit: '%' },
+    { key: 'weight', label: 'Weight', type: 'range', min: 0, max: 100, step: 1, unit: '%' },
+    { key: 'soft', label: 'Soft edge', type: 'range', min: 0, max: 100, step: 1, unit: '%' },
+    { key: 'relief', label: 'Relief', type: 'range', min: 0, max: 100, step: 1, unit: '%' },
+    { key: 'grain', label: 'Grain', type: 'range', min: 0, max: 100, step: 1, unit: '%' }
+  ];
+  var colorSpecs = [
+    { key: 'paper', label: 'Paper', type: 'color' },
+    { key: 'ink', label: 'Ink', type: 'color' }
   ];
   var motionSpecs = [
     { key: 'motion', label: 'Driven by', type: 'select', options: [['hybrid', 'Cursor + idle'], ['cursor', 'Cursor'], ['auto', 'Auto']] },
     { key: 'tempo', label: 'Auto tempo', type: 'range', min: 0.2, max: 3, step: 0.1, unit: '×', show: function (v) { return v.motion !== 'cursor'; } },
-    { key: 'follow', label: 'Follow smoothing', type: 'range', min: 1, max: 30, step: 0.5 }
-  ];
-  var colorSpecs = [
-    { key: 'fg', label: 'Shape', type: 'color' },
-    { key: 'bg', label: 'Background', type: 'color' }
+    { key: 'follow', label: 'Follow smoothing', type: 'range', min: 1, max: 30, step: 0.5 },
+    { key: 'flow', label: 'Particle speed', type: 'range', min: 0.5, max: 12, step: 0.5 }
   ];
 
   // ---------- shapes ----------
@@ -52,16 +67,16 @@
   }
 
   function rebuildSprites() {
-    var keep = shapes.preset === 'upload' && shared.keepColors;
-    sprites = shapes.sources().map(function (src) { return MM.shapes.makeSprite(src, shared.fg, keep); });
+    sprites = shapes.sources().map(function (src) { return MM.shapes.makeSprite(src); });
+    renderer.setShapes(sprites);
   }
 
   function choosePreset(key) {
     var pr = presets[key];
     if (pr) {
-      shared.gapX = pr.gapX; shared.gapY = pr.gapY; shared.size = pr.size;
+      shared.spacing = pr.spacing; shared.size = pr.size;
       buildSharedPanels();
-      layout();
+      rebuildParticles();
     }
     setStatus('');
     shapes.usePreset(key);
@@ -72,11 +87,24 @@
     shapes.addFiles(files).then(function (r) { setStatus(r.message, r.error); });
   }
 
+  function drawThumb(c, sp) {
+    var g = c.getContext('2d'), n = c.width, s = n * 0.78;
+    g.globalCompositeOperation = 'source-over';
+    g.clearRect(0, 0, n, n);
+    var tw = sp.aspect >= 1 ? s : s * sp.aspect, th = sp.aspect >= 1 ? s / sp.aspect : s;
+    g.drawImage(sp.canvas, (n - tw) / 2, (n - th) / 2, tw, th);
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = shared.ink;
+    g.fillRect(0, 0, n, n);
+    g.globalCompositeOperation = 'destination-over';
+    g.fillStyle = shared.paper;
+    g.fillRect(0, 0, n, n);
+  }
+
   function renderShapeUI() {
     var wrap = $('presets');
     wrap.innerHTML = '';
-    var keys = Object.keys(presets).concat(shapes.uploads.length ? ['upload'] : []);
-    keys.forEach(function (key) {
+    Object.keys(presets).concat(shapes.uploads.length ? ['upload'] : []).forEach(function (key) {
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'seg__btn';
@@ -96,12 +124,7 @@
         li.title = u.name;
         var c = document.createElement('canvas');
         c.width = c.height = 96;
-        var sp = sprites[i];
-        if (sp) {
-          var g = c.getContext('2d'), s = 76;
-          var tw = sp.aspect >= 1 ? s : s * sp.aspect, th = sp.aspect >= 1 ? s / sp.aspect : s;
-          g.drawImage(sp.canvas, (96 - tw) / 2, (96 - th) / 2, tw, th);
-        }
+        if (sprites[i]) drawThumb(c, sprites[i]);
         var rm = document.createElement('button');
         rm.type = 'button';
         rm.className = 'thumb__remove';
@@ -115,20 +138,45 @@
     if (shapePanel) shapePanel.refresh();
   }
 
+  // ---------- colour ----------
+  function applyColors() {
+    document.documentElement.style.setProperty('--stage-bg', shared.paper);
+    renderShapeUI();
+    renderPalettes();
+  }
+
+  function renderPalettes() {
+    var wrap = $('palettes');
+    wrap.innerHTML = '';
+    palettes.forEach(function (pal) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'swatch';
+      b.title = pal.name;
+      b.setAttribute('aria-label', pal.name + ' palette');
+      b.setAttribute('aria-pressed', String(pal.paper === shared.paper && pal.ink === shared.ink));
+      b.style.setProperty('--sw-paper', pal.paper);
+      b.style.setProperty('--sw-ink', pal.ink);
+      b.addEventListener('click', function () {
+        shared.paper = pal.paper; shared.ink = pal.ink;
+        colorPanel = MM.controls.build($('colorParams'), colorSpecs, shared, applyColors);
+        applyColors();
+      });
+      wrap.appendChild(b);
+    });
+  }
+
   // ---------- panels ----------
   function buildSharedPanels() {
     shapePanel = MM.controls.build($('shapeParams'), shapeSpecs, shared, function (key) {
       if (key === 'word') shapes.setWord(shared.word);
-      if (key === 'keepColors') { rebuildSprites(); renderShapeUI(); }
     });
-    MM.controls.build($('gridParams'), gridSpecs, shared, function (key) {
-      if (key !== 'size') layout();
+    MM.controls.build($('particleParams'), particleSpecs, shared, function (key) {
+      if (key === 'spacing') rebuildParticles();
     });
+    MM.controls.build($('surfaceParams'), surfaceSpecs, shared, function () {});
+    colorPanel = MM.controls.build($('colorParams'), colorSpecs, shared, applyColors);
     MM.controls.build($('motionParams'), motionSpecs, shared, function () {});
-    MM.controls.build($('colorParams'), colorSpecs, shared, function (key) {
-      if (key === 'fg') { rebuildSprites(); renderShapeUI(); }
-      document.documentElement.style.setProperty('--stage-bg', shared.bg);
-    });
   }
 
   function buildModePanel() {
@@ -152,38 +200,84 @@
     });
   }
 
+  // Particles keep their positions across a switch, so they flow from one composition into the next
   function setMode(m) {
     mode = m;
     modeState = m.createState();
-    m.reset(grid.els, modeState);
     renderTabs();
     buildModePanel();
     try { localStorage.setItem('mm-mode', m.id); } catch (e) { /* storage unavailable */ }
   }
 
   // ---------- layout ----------
+  function rebuildParticles() {
+    MM.noise.seed(seed);
+    particles = MM.particles.create(w, h, shared.spacing, seed);
+    if (inst.length < particles.length * 2 * STRIDE) inst = new Float32Array(particles.length * 2 * STRIDE);
+  }
+
   function layout() {
     var r = stage.getBoundingClientRect();
     w = Math.max(1, r.width); h = Math.max(1, r.height);
     dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(w * dpr);
-    canvas.height = Math.round(h * dpr);
-    grid = MM.grid.create(w, h, shared.gapX, shared.gapY, seed);
-    mode.reset(grid.els, modeState);
+    renderer.resize(w, h, dpr);
+    rebuildParticles();
   }
 
-  // ---------- loop ----------
+  // ---------- frame ----------
+  // Pack particles (and their reflections, for Mirror) into the instance buffer
+  function buildInstances(reflect, t) {
+    var n = sprites.length || 1, size = shared.size, vary = shared.sizeVar / 100, k = 0;
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+      if (p.hidden || p.s < 0.02) continue;
+      var sc = size * p.s * (1 - vary * p.grow);
+      var c = Math.cos(p.rot) * sc, s = Math.sin(p.rot) * sc;
+      var cell = Math.min(n - 1, (p.shape * n) | 0);
+      inst[k++] = p.x; inst[k++] = p.y; inst[k++] = c; inst[k++] = s; inst[k++] = -s; inst[k++] = c; inst[k++] = cell;
+      if (!reflect) continue;
+      if (reflect.axis === 'v') {
+        inst[k++] = 2 * reflect.x - p.x; inst[k++] = p.y; inst[k++] = -c; inst[k++] = s; inst[k++] = s; inst[k++] = c;
+      } else {
+        var depth = p.y < reflect.y ? reflect.y - p.y : 0;
+        var sway = reflect.ripple ? Math.sin(t * 1.6 - depth * 0.05 + Math.sin(p.x * 0.012 + t * 0.6)) * reflect.ripple * (2 + depth * 0.06) : 0;
+        inst[k++] = p.x + sway; inst[k++] = 2 * reflect.y - p.y; inst[k++] = c; inst[k++] = -s; inst[k++] = -s; inst[k++] = -c;
+      }
+      inst[k++] = cell;
+    }
+    return k / STRIDE;
+  }
+
+  // Once blurred, the field reads as local particle density. Scale it so 1 means "average density":
+  // evenly spread areas become solid, gathered bands stay solid, and sparse stragglers melt away.
+  function fieldGain(sigma) {
+    var v = shared.sizeVar / 100, sp = particles.spacing || shared.spacing;
+    var density = renderer.coverage * shared.size * shared.size * (1 - v + v * v / 3) / (sp * sp);
+    var full = Math.max(1, 1 / Math.max(density, 0.01));
+    var u = Math.min(1, sigma / (sp * 0.9));
+    return 1 + (full - 1) * u * u * (3 - 2 * u);
+  }
+
   var last = performance.now() / 1000;
   function frame(now) {
     var t = now / 1000, dt = Math.min(0.05, Math.max(0, t - last));
     last = t;
     pointer.update(t, dt, w, h, shared);
-    var env = {
-      w: w, h: h, t: t, dt: dt, tx: pointer.x, ty: pointer.y, cx: w / 2, cy: h / 2,
-      grid: grid, size: shared.size
-    };
-    var layers = mode.update(grid.els, env, params[mode.id], modeState) || [{ items: grid.els }];
-    MM.renderer.draw(ctx, layers, sprites, shared.size, dpr, shared.bg);
+    var env = { w: w, h: h, t: t, dt: dt, tx: pointer.x, ty: pointer.y, cx: w / 2, cy: h / 2, diag: Math.hypot(w, h) };
+    var reflect = mode.update(particles, env, params[mode.id], modeState);
+    MM.particles.step(particles, dt, shared.flow);
+    var count = buildInstances(reflect, t);
+    var sigma = (shared.goo / 100) * Math.max(shared.size, 4) * 1.4;
+    renderer.draw(inst, count, {
+      sigma: sigma,
+      gain: fieldGain(sigma),
+      thresh: 0.78 - (shared.weight / 100) * 0.56,
+      soft: shared.soft / 100,
+      relief: shared.relief / 100,
+      grain: shared.grain / 100,
+      paper: shared.paper,
+      ink: shared.ink
+    });
     requestAnimationFrame(frame);
   }
 
@@ -197,7 +291,7 @@
 
   $('shuffle').addEventListener('click', function () {
     seed += 1;
-    layout();
+    rebuildParticles();
   });
 
   stage.addEventListener('dragover', function (e) { e.preventDefault(); stage.classList.add('is-drop'); });
@@ -211,7 +305,6 @@
   $('panelToggle').addEventListener('click', function () {
     var open = document.body.classList.toggle('panel-open');
     this.setAttribute('aria-expanded', String(open));
-    setTimeout(layout, 0);
   });
 
   var saveBtn = $('savePng'); // absent where downloads are not allowed
@@ -239,6 +332,7 @@
   buildModePanel();
   buildSharedPanels();
   layout();
-  choosePreset('word');
+  choosePreset('dot');
+  applyColors();
   requestAnimationFrame(frame);
 })(window.MM = window.MM || {});

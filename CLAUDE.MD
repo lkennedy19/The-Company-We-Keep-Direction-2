@@ -11,7 +11,7 @@ Before making **any** change to this codebase:
 
 ## What This App Is
 
-Magnet / Mirror: a static, no-build browser tool for designers. Upload any SVG (or use a preset/word), repeat it across a grid, and animate it around a point that follows the cursor or wanders on its own. Modes: Magnet (elements turn toward the point) and Mirror (the point carries an invisible mirror line reflecting one side of the grid onto the other). Several uploaded SVGs can be scattered across the grid. Open `index.html` directly or serve the folder statically.
+Magnet / Mirror: a static, no-build browser tool for designers. SVG shapes (presets or uploads) become particles that gather on the contours of a field, rendered through a WebGL goo / relief / grain pass in a two-colour palette. Magnet pulls them into rings around a moving pole; Mirror folds a liquid field across an invisible centre line like an inkblot. The pole follows the cursor or wanders on its own. Open `index.html` directly or serve the folder statically. Needs WebGL 2.
 
 ---
 
@@ -27,15 +27,19 @@ Magnet / Mirror: a static, no-build browser tool for designers. Upload any SVG (
 ├── index.html              # App shell (no inline CSS/JS)
 ├── css/styles.css          # All styles; design tokens at the top
 └── js/                     # Classic scripts sharing the window.MM namespace (works over file://)
-    ├── util.js             # Math + 2x2 matrix helpers, magnet field angle
-    ├── grid.js             # Infinite, seeded grid: cell positions + per-cell random values
+    ├── util.js             # Math + 2x2 matrix helpers
+    ├── noise.js            # Seeded 3D simplex noise + fbm
+    ├── particles.js        # Particle creation, easing toward targets, contour-gathering helper
     ├── pointer.js          # Cursor / auto-wander target point
-    ├── renderer.js         # Draws layers of items (optional clip), picking a sprite per item
-    ├── shapes.js           # Presets, word source, SVG loader, tinted sprite
+    ├── shapes.js           # Presets, word source, SVG loader, white silhouette sprite
     ├── shape-set.js        # Current shapes: one preset or a list of uploaded SVGs
+    ├── palettes.js         # Two-colour paper/ink palettes
     ├── controls.js         # Builds settings UI from param specs
-    ├── app.js              # Tabs, panel, resize, animation loop
-    └── modes/              # One file per mode: { id, label, blurb, params, createState, reset(els, state), update → layers? }
+    ├── app.js              # Tabs, panel, instance packing, animation loop
+    ├── gl/
+    │   ├── shaders.js      # Stamp, blur and final (threshold/relief/grain) shaders
+    │   └── gl-renderer.js  # WebGL 2 pipeline: shape atlas, instanced stamping, goo, composite
+    └── modes/              # One file per mode: { id, label, blurb, params, createState, update(particles, env, params, state) → reflect? }
         ├── magnet.js
         └── mirror.js
 ```

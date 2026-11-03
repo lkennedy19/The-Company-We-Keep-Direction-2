@@ -2,22 +2,32 @@
    that the renderer stamps across the grid. */
 (function (MM) {
   'use strict';
-  var RASTER = 768; // long side of the rasterised shape, in device pixels
+  var RASTER = 512; // long side of the rasterised shape, in device pixels
   var WORD_FONT = '700 200px "Helvetica Neue", Helvetica, Arial, sans-serif';
 
+  // Each preset suggests a particle spacing and size that suit it
   var presets = {
+    dot: {
+      label: 'Dot',
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="#fff"/></svg>',
+      spacing: 11, size: 8
+    },
+    pebble: {
+      label: 'Pebble',
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80"><path fill="#fff" d="M46 2c24-2 50 10 53 34 3 22-17 41-45 43C25 81 2 68 1 45-1 21 21 4 46 2z"/></svg>',
+      spacing: 11, size: 9
+    },
+    house: {
+      label: 'House',
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path fill="#fff" d="M0 40 50 0l50 40v60H0z"/></svg>',
+      spacing: 15, size: 13
+    },
     bar: {
       label: 'Bar',
-      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 16"><rect width="100" height="16" fill="#fff"/></svg>',
-      gapX: 34, gapY: 34, size: 28
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 22"><rect width="100" height="22" fill="#fff"/></svg>',
+      spacing: 16, size: 16
     },
-    harpoon: {
-      label: 'Harpoon',
-      // Asymmetric on both axes so mirroring is always visible
-      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40"><path fill="#fff" d="M0 28h84L62 6l8-6 30 34H0z"/></svg>',
-      gapX: 46, gapY: 46, size: 38
-    },
-    word: { label: 'Word', word: true, gapX: 120, gapY: 92, size: 78 }
+    word: { label: 'Word', word: true, spacing: 44, size: 40 }
   };
 
   function sourceFromImage(img, w, h) {
@@ -80,19 +90,17 @@
     };
   }
 
-  // Rasterise a source; unless keepColors, flatten it to a single colour
-  function makeSprite(source, color, keepColors) {
+  // Rasterise a source as a white silhouette (colour is applied later, by the palette)
+  function makeSprite(source) {
     var a = source.aspect;
     var c = document.createElement('canvas');
     c.width = a >= 1 ? RASTER : Math.max(1, Math.round(RASTER * a));
     c.height = a >= 1 ? Math.max(1, Math.round(RASTER / a)) : RASTER;
     var ctx = c.getContext('2d');
     source.draw(ctx, c.width, c.height);
-    if (!keepColors) {
-      ctx.globalCompositeOperation = 'source-in';
-      ctx.fillStyle = color;
-      ctx.fillRect(0, 0, c.width, c.height);
-    }
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
     return { canvas: c, aspect: a };
   }
 

@@ -4,7 +4,7 @@
   var MAX_UPLOADS = 12;
 
   function ShapeSet(onChange) {
-    this.preset = 'word';      // a preset key, or 'upload'
+    this.preset = 'dot';       // a preset key, or 'upload'
     this.word = 'KEEP';
     this.presetSource = null;
     this.uploads = [];         // [{ name, source }]
@@ -73,7 +73,7 @@
 
   ShapeSet.prototype.remove = function (index) {
     this.uploads.splice(index, 1);
-    if (!this.uploads.length) return this.usePreset('harpoon');
+    if (!this.uploads.length) return this.usePreset('dot');
     this.onChange();
     return Promise.resolve();
   };

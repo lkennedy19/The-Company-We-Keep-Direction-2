@@ -292,3 +292,39 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
   cursor: pointer;
 }
 .thumb__remove:hover { background: var(--fg); color: var(--bg); }
+
+/* ===== Palettes ===== */
+.swatches { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.swatch {
+  position: relative;
+  width: 32px; height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--sw-paper);
+  cursor: pointer;
+}
+.swatch::after {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  background: var(--sw-ink);
+}
+.swatch[aria-pressed="true"] { outline: 1px solid var(--fg); outline-offset: 2px; }
+
+.gl-error {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: var(--sp-5);
+  text-align: center;
+  color: var(--muted);
+}
+
+/* Preset row wraps into a grid once it holds more than three choices */
+.seg--wrap { display: grid; grid-template-columns: repeat(3, 1fr); }
+.seg--wrap .seg__btn:nth-child(3n + 1) { border-left: 0; }
+.seg--wrap .seg__btn:nth-child(n + 4) { border-top: 1px solid var(--line); }

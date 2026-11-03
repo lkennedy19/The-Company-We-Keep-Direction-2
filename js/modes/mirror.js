@@ -1,89 +1,110 @@
-/* MIRROR — the pointer carries an invisible mirror line. The grid on one side stays put; the
-   other side shows its reflection. Moving the mirror rewrites half the composition: the reflection
-   slides at twice your speed and pieces from off-screen swing into view. Nothing turns to face
-   anything, which keeps it distinct from Magnet. */
+/* MIRROR — a slow, liquid field folded across an invisible centre line, like an inkblot.
+   Particles gather on its contours (Lines) or fill its high ground (Blots). The pointer presses
+   into the liquid, and because the field is folded, the dent appears on both sides. */
 (function (MM) {
   'use strict';
-  var M = MM.math;
+  var M = MM.math, P = MM.particles, N = MM.noise;
   MM.modes = MM.modes || {};
+  var off = [0, 0];
 
-  function inRect(x, y, x0, y0, x1, y1) { return x >= x0 && x <= x1 && y >= y0 && y <= y1; }
+  // Field values on a coarse grid over the real half, sampled bilinearly per particle
+  function buildField(st, x0, x1, y0, y1, cell, fn) {
+    var cols = Math.ceil((x1 - x0) / cell) + 2, rows = Math.ceil((y1 - y0) / cell) + 2;
+    if (!st.v || st.v.length < cols * rows) st.v = new Float32Array(cols * rows);
+    st.x0 = x0; st.y0 = y0; st.cell = cell; st.cols = cols; st.rows = rows;
+    for (var j = 0; j < rows; j++) {
+      for (var i = 0; i < cols; i++) st.v[j * cols + i] = fn(x0 + i * cell, y0 + j * cell);
+    }
+  }
+
+  // Average slope of the field, used to turn a line spacing in px into contour levels
+  function meanSlope(st) {
+    var V = st.v, c = st.cols, sum = 0, n = 0;
+    for (var j = 0; j < st.rows - 1; j += 2) {
+      for (var i = 0; i < c - 1; i += 2) {
+        var k = j * c + i;
+        sum += Math.hypot(V[k + 1] - V[k], V[k + c] - V[k]);
+        n++;
+      }
+    }
+    return Math.max(1e-6, sum / Math.max(1, n) / st.cell);
+  }
+
+  function sample(st, x, y, out) {
+    var u = M.clamp((x - st.x0) / st.cell, 0, st.cols - 1.001);
+    var v = M.clamp((y - st.y0) / st.cell, 0, st.rows - 1.001);
+    var i = u | 0, j = v | 0, a = u - i, b = v - j, c = st.cols, V = st.v;
+    var v00 = V[j * c + i], v10 = V[j * c + i + 1], v01 = V[(j + 1) * c + i], v11 = V[(j + 1) * c + i + 1];
+    out.f = (v00 * (1 - a) + v10 * a) * (1 - b) + (v01 * (1 - a) + v11 * a) * b;
+    out.gx = ((v10 - v00) * (1 - b) + (v11 - v01) * b) / st.cell;
+    out.gy = ((v01 - v00) * (1 - a) + (v11 - v10) * a) / st.cell;
+    return out;
+  }
 
   MM.modes.mirror = {
     id: 'mirror',
     label: 'Mirror',
-    blurb: 'Your cursor carries an invisible mirror. One side of the grid is reflected onto the other, so moving the mirror rewrites half the composition.',
+    blurb: 'A slow liquid folded down an invisible centre line, like an inkblot. Press into it and the dent appears on both sides.',
     params: [
-      { key: 'direction', label: 'Mirror', type: 'select', value: 'h', options: [['h', 'Horizontal'], ['v', 'Vertical']] },
-      { key: 'tilt', label: 'Tilt', type: 'range', min: -45, max: 45, step: 1, value: 0, unit: '°' },
-      { key: 'scatter', label: 'Scatter', type: 'range', min: 0, max: 180, step: 1, value: 40, unit: '°' },
-      { key: 'surface', label: 'Surface', type: 'select', value: 'glass', options: [['glass', 'Glass'], ['water', 'Water']] },
-      { key: 'ripple', label: 'Ripple', type: 'range', min: 0, max: 100, step: 1, value: 45, unit: '%', show: function (v) { return v.surface === 'water'; } }
+      { key: 'form', label: 'Form', type: 'select', value: 'lines', options: [['lines', 'Lines'], ['blots', 'Blots']] },
+      { key: 'axis', label: 'Fold', type: 'select', value: 'v', options: [['v', 'Left | Right'], ['h', 'Top / Bottom']] },
+      { key: 'scale', label: 'Scale', type: 'range', min: 80, max: 900, step: 10, value: 420, unit: 'px' },
+      { key: 'lineGap', label: 'Line spacing', type: 'range', min: 20, max: 300, step: 1, value: 80, unit: 'px', show: function (v) { return v.form === 'lines'; } },
+      { key: 'thickness', label: 'Band thickness', type: 'range', min: 5, max: 100, step: 1, value: 30, unit: '%', show: function (v) { return v.form === 'lines'; } },
+      { key: 'ink', label: 'Ink', type: 'range', min: 0, max: 100, step: 1, value: 45, unit: '%', show: function (v) { return v.form === 'blots'; } },
+      { key: 'press', label: 'Press', type: 'range', min: 0, max: 100, step: 1, value: 60, unit: '%' },
+      { key: 'radius', label: 'Press size', type: 'range', min: 30, max: 500, step: 5, value: 150, unit: 'px' },
+      { key: 'drift', label: 'Drift', type: 'range', min: 0, max: 100, step: 1, value: 25, unit: '%' },
+      { key: 'ripple', label: 'Ripple', type: 'range', min: 0, max: 100, step: 1, value: 0, unit: '%' },
+      { key: 'align', label: 'Align', type: 'range', min: 0, max: 100, step: 1, value: 100, unit: '%' }
     ],
-    createState: function () { return {}; },
-    reset: function () {},
+    createState: function () { return { z: 0, s: {} }; },
 
-    update: function (els, env, p) {
-      var g = env.grid, size = env.size, margin = size;
-      // Horizontal: top is real, bottom is the reflection. Vertical: left is real, right reflects.
-      var phi = (p.direction === 'h' ? 0 : -Math.PI / 2) + p.tilt * M.DEG;
-      var dx = Math.cos(phi), dy = Math.sin(phi), nx = -dy, ny = dx;
+    update: function (ps, env, p, st) {
+      var vertical = p.axis === 'v';
+      var cx = env.cx, cy = env.cy;
+      st.z += env.dt * (p.drift / 100) * 0.25;
+
+      // Fold the pointer into the real half (left or top)
       var px = env.tx, py = env.ty;
-      var flip = M.mirrorAcross(phi, -1);
-      var scatter = p.scatter * M.DEG;
-      var water = p.surface === 'water', amp = p.ripple / 100;
-      var diag = Math.hypot(env.w, env.h);
+      if (vertical && px > cx) px = 2 * cx - px;
+      if (!vertical && py > cy) py = 2 * cy - py;
 
-      function cellsIn(x0, y0, x1, y1, visit) {
-        var i0 = Math.ceil((x0 - g.x0) / g.gapX), i1 = Math.floor((x1 - g.x0) / g.gapX);
-        var j0 = Math.ceil((y0 - g.y0) / g.gapY), j1 = Math.floor((y1 - g.y0) / g.gapY);
-        for (var j = j0; j <= j1; j++) for (var i = i0; i <= i1; i++) visit(i, j);
+      var sc = 1 / p.scale, z = st.z;
+      var cell = Math.max(10, p.scale / 18), pad = cell * 2;
+      buildField(st.s, -pad, (vertical ? cx : env.w) + pad, -pad, (vertical ? env.h : cy) + pad, cell, function (x, y) {
+        var u = x * sc, v = y * sc;
+        var qx = N.fbm(u, v, z), qy = N.fbm(u + 5.2, v + 1.3, z);
+        return N.fbm(u + 1.6 * qx, v + 1.6 * qy, z + 3.7);
+      });
+
+      var lines = p.form === 'lines', th = p.thickness / 100, al = p.align / 100;
+      var bands = lines ? 1 / (p.lineGap * meanSlope(st.s)) : 1;
+      var R2 = p.radius * p.radius, A = (p.press / 100) * (lines ? 1.5 / bands : 0.9);
+      var level = 0.45 - (p.ink / 100) * 0.9;
+      var smp = {}, maxD = lines ? p.lineGap * 0.6 : 0;
+
+      for (var i = 0; i < ps.length; i++) {
+        var q = ps[i];
+        var real = vertical ? q.hx <= cx : q.hy <= cy;
+        q.hidden = !real;
+        if (!real) continue;
+
+        sample(st.s, q.hx, q.hy, smp);
+        var dx = q.hx - px, dy = q.hy - py, e = A * Math.exp(-(dx * dx + dy * dy) / R2);
+        var f = smp.f + e, gx = smp.gx - e * 2 * dx / R2, gy = smp.gy - e * 2 * dy / R2;
+
+        if (lines) {
+          P.toContour(f * bands, gx * bands, gy * bands, th, q.band, maxD, off);
+          q.tx = q.hx + off[0]; q.ty = q.hy + off[1]; q.ts = 1;
+        } else {
+          q.tx = q.hx; q.ty = q.hy;
+          var m = (f - level) / 0.06;
+          q.ts = m <= 0 ? 0 : m >= 1 ? 1 : m * m * (3 - 2 * m);
+        }
+        q.trot = P.align(q, Math.atan2(gy, gx) + Math.PI / 2, al);
       }
-
-      // Real side: cells as they are, each with its fixed scatter tilt
-      var real = [];
-      cellsIn(-margin, -margin, env.w + margin, env.h + margin, function (i, j) {
-        var c = MM.grid.cell(g, i, j);
-        if (nx * (c.x - px) + ny * (c.y - py) < margin) {
-          c.m = M.rot((c.r2 * 2 - 1) * scatter);
-          real.push(c);
-        }
-      });
-
-      // Reflection: find the real cells whose mirror image lands on screen, and reflect them
-      var bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
-      [[0, 0], [env.w, 0], [0, env.h], [env.w, env.h]].forEach(function (q) {
-        var s = nx * (q[0] - px) + ny * (q[1] - py);
-        var rx = q[0] - 2 * s * nx, ry = q[1] - 2 * s * ny;
-        bx0 = Math.min(bx0, rx); by0 = Math.min(by0, ry); bx1 = Math.max(bx1, rx); by1 = Math.max(by1, ry);
-      });
-      var refl = [];
-      cellsIn(bx0 - margin, by0 - margin, bx1 + margin, by1 + margin, function (i, j) {
-        var c = MM.grid.cell(g, i, j);
-        var s = nx * (c.x - px) + ny * (c.y - py);
-        if (s >= margin) return;
-        var rx = c.x - 2 * s * nx, ry = c.y - 2 * s * ny;
-        if (!inRect(rx, ry, -margin, -margin, env.w + margin, env.h + margin)) return;
-        var rot = (c.r2 * 2 - 1) * scatter;
-        if (water) {
-          var depth = Math.abs(s), along = dx * (rx - px) + dy * (ry - py);
-          var wave = Math.sin(env.t * 1.6 - depth * 0.045 + Math.sin(along * 0.01 + env.t * 0.7));
-          var k = M.clamp(depth / (diag * 0.5), 0, 1);
-          rx += dx * wave * amp * (3 + 16 * k);
-          ry += dy * wave * amp * (3 + 16 * k);
-          rot += wave * amp * 0.3 * k;
-        }
-        c.x = rx; c.y = ry;
-        c.m = M.mul(flip, M.rot(rot));
-        refl.push(c);
-      });
-
-      // Each side is clipped at the mirror, so pieces that touch it are cut like real objects
-      var L = diag * 2;
-      var a = [px - dx * L, py - dy * L], b = [px + dx * L, py + dy * L];
-      var realClip = [a, b, [b[0] - nx * L, b[1] - ny * L], [a[0] - nx * L, a[1] - ny * L]];
-      var reflClip = [a, b, [b[0] + nx * L, b[1] + ny * L], [a[0] + nx * L, a[1] + ny * L]];
-      return [{ items: real, clip: realClip }, { items: refl, clip: reflClip }];
+      return { axis: vertical ? 'v' : 'h', x: cx, y: cy, ripple: p.ripple / 100 };
     }
   };
 })(window.MM = window.MM || {});

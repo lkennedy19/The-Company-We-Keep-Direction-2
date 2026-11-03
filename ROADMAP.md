@@ -4,11 +4,12 @@ Legend: 🟡 in progress / awaiting review · ~~done~~ (approved)
 
 ## Now
 
-- 🟡 **Magnet / Mirror grid tool v1** — upload SVGs, scatter them across a grid, animate with a cursor-driven or self-driven point.
-  - 🟡 Magnet mode (orbit / point field, twist, reach)
-  - 🟡 Mirror mode — pointer carries an invisible mirror line; one side of the grid is reflected onto the other (glass or water surface, tilt, scatter). No colour/opacity change on the reflection.
-  - 🟡 Multiple SVG uploads, randomly dispersed across the grid, with Shuffle
-  - Explored and rejected: Fold / Kaleido / Ripple (read as flipping tiles, relied on drawn lines), Twin / Mimic / Pool (too close to Magnet; Pool's reflection idea became Mirror)
+- 🟡 **Magnet / Mirror v2 — organic particle direction** (after print references: Mixtur, Clamart, Raya × Nachtkantoor)
+  - 🟡 Shared engine: SVGs become particles that gather on the contours of a field; WebGL goo (blur + threshold), relief, grain, two-colour palettes
+  - 🟡 Magnet: particles flow into wobbly rings / a spiral around a moving pole
+  - 🟡 Mirror: liquid noise field folded across an invisible centre line (inkblot); pointer presses into it on both sides. Lines or Blots form; left/right or top/bottom fold
+  - 🟡 Multiple SVG uploads scattered across the particles, with Shuffle
+  - Explored and rejected: v1 rigid grid (Magnet + Fold / Kaleido / Ripple, then Twin / Mimic / Pool, then grid Mirror) — too rigid, and Mirror read too close to Magnet
 
 ## Next
 
@@ -18,5 +19,6 @@ Legend: 🟡 in progress / awaiting review · ~~done~~ (approved)
 
 - Export animation as video / GIF (currently PNG stills only)
 - Save and share presets (all settings as JSON or URL)
-- Multiple magnets / multiple mirror points
-- Per-element variation (random size or rotation jitter)
+- Multiple magnets
+- Keep uploaded SVG colours (the goo pipeline is currently single-ink)
+- Save and load compositions; export at print size
