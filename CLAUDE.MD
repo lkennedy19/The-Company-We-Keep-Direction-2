@@ -30,7 +30,7 @@ Magnet / Mirror: a static, no-build browser tool for designers. Upload any SVG (
     ├── util.js             # Math + 2x2 matrix helpers, magnet field angle
     ├── grid.js             # Infinite, seeded grid: cell positions + per-cell random values
     ├── pointer.js          # Cursor / auto-wander target point
-    ├── renderer.js         # Draws sprite per element using its matrix + alpha
+    ├── renderer.js         # Draws layers of items (optional clip), picking a sprite per item
     ├── shapes.js           # Presets, word source, SVG loader, tinted sprite
     ├── shape-set.js        # Current shapes: one preset or a list of uploaded SVGs
     ├── controls.js         # Builds settings UI from param specs
