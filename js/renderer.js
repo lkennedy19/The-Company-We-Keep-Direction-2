@@ -19,25 +19,13 @@
       var e = els[i], m = e.m;
       if (e.alpha <= 0.001) continue;
       ctx.globalAlpha = e.alpha;
-      ctx.setTransform(dpr * m[0], dpr * m[1], dpr * m[2], dpr * m[3], dpr * e.x, dpr * e.y);
+      ctx.setTransform(dpr * m[0], dpr * m[1], dpr * m[2], dpr * m[3], dpr * (e.x + (e.ox || 0)), dpr * e.y);
       ctx.drawImage(img, -sw / 2, -sh / 2, sw, sh);
     }
     ctx.globalAlpha = 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  // Thin guide line through (x, y) at angle phi, used by the mirror modes to show the axis
-  function axisLine(ctx, x, y, phi, len, color, alpha) {
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x - Math.cos(phi) * len, y - Math.sin(phi) * len);
-    ctx.lineTo(x + Math.cos(phi) * len, y + Math.sin(phi) * len);
-    ctx.stroke();
-    ctx.restore();
-  }
 
-  MM.renderer = { draw: draw, axisLine: axisLine };
+  MM.renderer = { draw: draw };
 })(window.MM = window.MM || {});

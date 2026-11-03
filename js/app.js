@@ -2,7 +2,7 @@
 (function (MM) {
   'use strict';
   var M = MM.math;
-  var modes = [MM.modes.magnet, MM.modes.fold, MM.modes.kaleido, MM.modes.ripple];
+  var modes = [MM.modes.magnet, MM.modes.twin, MM.modes.mimic, MM.modes.pool];
   var presets = MM.shapes.presets;
 
   var $ = function (id) { return document.getElementById(id); };
@@ -153,7 +153,7 @@
   function setMode(m) {
     mode = m;
     modeState = m.createState();
-    m.reset(els);
+    m.reset(els, modeState);
     renderTabs();
     buildModePanel();
     try { localStorage.setItem('mm-mode', m.id); } catch (e) { /* storage unavailable */ }
@@ -167,7 +167,7 @@
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
     els = MM.grid.build(w, h, shared.gapX, shared.gapY);
-    mode.reset(els);
+    mode.reset(els, modeState);
   }
 
   // ---------- loop ----------
@@ -179,7 +179,6 @@
     var env = { w: w, h: h, t: t, dt: dt, tx: pointer.x, ty: pointer.y, cx: w / 2, cy: h / 2 };
     mode.update(els, env, params[mode.id], modeState);
     MM.renderer.draw(ctx, els, sprite, shared.size, dpr, shared.bg);
-    if (mode.overlay) mode.overlay(ctx, env, params[mode.id], modeState, shared.fg);
     requestAnimationFrame(frame);
   }
 

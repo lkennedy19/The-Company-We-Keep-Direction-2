@@ -11,7 +11,7 @@ Before making **any** change to this codebase:
 
 ## What This App Is
 
-Magnet / Mirror: a static, no-build browser tool for designers. Upload any SVG (or use a preset/word), repeat it across a grid, and animate it around a point that follows the cursor or wanders on its own. Modes: Magnet, plus three candidate Mirror treatments (Fold, Kaleido, Ripple). Open `index.html` directly or serve the folder statically.
+Magnet / Mirror: a static, no-build browser tool for designers. Upload any SVG (or use a preset/word), repeat it across a grid, and animate it around a point that follows the cursor or wanders on its own. Modes: Magnet, plus three candidate Mirror treatments (Twin, Mimic, Pool). Open `index.html` directly or serve the folder statically.
 
 ---
 
@@ -34,11 +34,11 @@ Magnet / Mirror: a static, no-build browser tool for designers. Upload any SVG (
     ├── shapes.js           # Presets, word source, SVG loader, tinted sprite
     ├── controls.js         # Builds settings UI from param specs
     ├── app.js              # Tabs, panel, resize, animation loop
-    └── modes/              # One file per mode: { id, label, blurb, params, createState, reset, update, overlay? }
+    └── modes/              # One file per mode: { id, label, blurb, params, createState, reset(els, state), update }
         ├── magnet.js
-        ├── mirror-fold.js
-        ├── mirror-kaleido.js
-        └── mirror-ripple.js
+        ├── mirror-twin.js
+        ├── mirror-mimic.js
+        └── mirror-pool.js
 ```
 
 ---
