@@ -1,5 +1,6 @@
 /* Builds settings UI from small param specs:
-   { key, label, type: 'range'|'select'|'toggle'|'color'|'text', value, min, max, step, unit, options, show(values) } */
+   { key, label, type: 'range'|'select'|'dropdown'|'toggle'|'color'|'text', value, min, max, step, unit,
+     options (array of [value, label], or a function returning one), show(values) } */
 (function (MM) {
   'use strict';
   var uid = 0;
@@ -68,6 +69,17 @@
           seg.appendChild(b);
         });
         row.append(lab, seg);
+      } else if (s.type === 'dropdown') {
+        var sel = el('select');
+        sel.id = id;
+        (typeof s.options === 'function' ? s.options() : s.options).forEach(function (opt) {
+          var o = el('option', null, opt[1]);
+          o.value = opt[0];
+          sel.appendChild(o);
+        });
+        sel.value = values[s.key];
+        sel.addEventListener('change', function () { values[s.key] = sel.value; changed(s.key); });
+        row.append(label, sel);
       } else if (s.type === 'toggle') {
         var cb = el('input');
         cb.type = 'checkbox'; cb.id = id; cb.checked = !!values[s.key];

@@ -11,7 +11,7 @@ Before making **any** change to this codebase:
 
 ## What This App Is
 
-Magnet / Mirror: a static, no-build browser tool for designers. SVG shapes (presets or uploads) become particles that gather on the contours of a field, rendered through a WebGL goo / relief / grain pass in a two-colour palette. Magnet pulls them into rings around a moving pole; Mirror folds a liquid field across an invisible centre line like an inkblot. The pole follows the cursor or wanders on its own. Open `index.html` directly or serve the folder statically. Needs WebGL 2.
+Magnet / Mirror: a static, no-build browser tool for designers that turns physical concepts into animated diagram compositions (flat colour, print grain, seamless loops) built from the user's own SVG shapes. Concepts so far: Magnet (a bar magnet's real field, with module chains flowing along the field loops) and Mirror (plane-mirror geometry: object, reversed image, equal-angle rays, dashed lines to the image). More concepts will be added as modules. Open `index.html` directly or serve the folder statically.
 
 ---
 
@@ -28,18 +28,17 @@ Magnet / Mirror: a static, no-build browser tool for designers. SVG shapes (pres
 ├── css/styles.css          # All styles; design tokens at the top
 └── js/                     # Classic scripts sharing the window.MM namespace (works over file://)
     ├── util.js             # Math + 2x2 matrix helpers
-    ├── noise.js            # Seeded 3D simplex noise + fbm
-    ├── particles.js        # Particle creation, easing toward targets, contour-gathering helper
-    ├── pointer.js          # Cursor / auto-wander target point
-    ├── shapes.js           # Presets, word source, SVG loader, white silhouette sprite
-    ├── shape-set.js        # Current shapes: one preset or a list of uploaded SVGs
-    ├── palettes.js         # Two-colour paper/ink palettes
+    ├── path.js             # Arc-length polylines and the accordion warp
+    ├── pointer.js          # Cursor / home-loop / wander target point
+    ├── shapes.js           # Built-in shapes, SVG loader, white silhouette sprite
+    ├── shape-library.js    # Built-ins + uploads; which shape is the module and which the object
+    ├── palette.js          # Colour roles and palettes
     ├── controls.js         # Builds settings UI from param specs
-    ├── app.js              # Tabs, panel, instance packing, animation loop
-    ├── gl/
-    │   ├── shaders.js      # Stamp, blur and final (threshold/relief/grain) shaders
-    │   └── gl-renderer.js  # WebGL 2 pipeline: shape atlas, instanced stamping, goo, composite
-    └── modes/              # One file per mode: { id, label, blurb, params, createState, update(particles, env, params, state) → reflect? }
+    ├── draw.js             # Tinted shapes, chains along paths, hairlines, fills, arrows
+    ├── texture.js          # Grain, speckle, streaks, frame overlay
+    ├── recorder.js         # Records one loop of the canvas as MP4/WebM
+    ├── app.js              # Tabs, panels, loop clock, layout/formats, export
+    └── concepts/           # One file per concept: { id, label, blurb, params, createState, home, draw }
         ├── magnet.js
         └── mirror.js
 ```

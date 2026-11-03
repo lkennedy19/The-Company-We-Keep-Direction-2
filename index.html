@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Magnet / Mirror</title>
-  <meta name="description" content="Turn SVG shapes into organic particle compositions shaped by a magnet or a mirror.">
+  <meta name="description" content="Animated diagram compositions of physical concepts, built from your own SVG shapes.">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
   <header class="topbar">
     <div class="brand">Magnet <span class="brand__slash">/</span> Mirror</div>
-    <nav class="tabs" id="tabs" role="tablist" aria-label="Mode"></nav>
+    <nav class="tabs" id="tabs" role="tablist" aria-label="Concept"></nav>
     <button type="button" class="btn btn--ghost" id="panelToggle" aria-controls="panel" aria-expanded="false">Settings</button>
   </header>
 
@@ -18,45 +18,35 @@
     <section class="stage" id="stage" aria-label="Canvas">
       <canvas id="canvas"></canvas>
       <div class="drop-hint" aria-hidden="true">Drop .svg files to add them</div>
-      <p class="gl-error" id="glError" hidden>This tool needs WebGL 2. Try a current version of Chrome, Firefox or Safari.</p>
     </section>
 
     <aside class="panel" id="panel" aria-label="Settings">
       <section class="group group--mode">
-        <h2 class="group__title" id="modeTitle"></h2>
-        <p class="group__blurb" id="modeBlurb"></p>
-        <div id="modeParams"></div>
+        <h2 class="group__title" id="conceptTitle"></h2>
+        <p class="group__blurb" id="conceptBlurb"></p>
+        <div id="conceptParams"></div>
       </section>
 
       <section class="group">
-        <h2 class="group__title">Shape</h2>
-        <div class="seg seg--wrap" id="presets" role="group" aria-label="Shape preset"></div>
-        <ul class="thumbs" id="uploadList" aria-label="Uploaded shapes" hidden></ul>
-        <div class="shape-actions">
-          <label class="btn btn--upload">
-            Add .svg files
-            <input type="file" id="fileInput" accept=".svg,image/svg+xml" multiple>
-          </label>
-          <button type="button" class="btn" id="shuffle">Shuffle</button>
-        </div>
+        <h2 class="group__title">Shapes</h2>
         <div id="shapeParams"></div>
+        <ul class="thumbs" id="uploadList" aria-label="Uploaded shapes" hidden></ul>
+        <label class="btn btn--upload">
+          Add .svg files
+          <input type="file" id="fileInput" accept=".svg,image/svg+xml" multiple>
+        </label>
         <p class="status" id="shapeStatus" role="status"></p>
-      </section>
-
-      <section class="group">
-        <h2 class="group__title">Particles</h2>
-        <div id="particleParams"></div>
-      </section>
-
-      <section class="group">
-        <h2 class="group__title">Surface</h2>
-        <div id="surfaceParams"></div>
       </section>
 
       <section class="group">
         <h2 class="group__title">Colour</h2>
         <div class="swatches" id="palettes" role="group" aria-label="Palettes"></div>
-        <div class="color-row" id="colorParams"></div>
+        <div class="color-grid" id="colorParams"></div>
+      </section>
+
+      <section class="group">
+        <h2 class="group__title">Texture</h2>
+        <div id="textureParams"></div>
       </section>
 
       <section class="group">
@@ -64,24 +54,30 @@
         <div id="motionParams"></div>
       </section>
 
+      <section class="group">
+        <h2 class="group__title">Canvas</h2>
+        <div id="canvasParams"></div>
+      </section>
+
       <div class="group group--actions">
+        <button type="button" class="btn" id="recordLoop">Record loop</button>
         <button type="button" class="btn" id="savePng">Save PNG</button>
       </div>
     </aside>
   </main>
 
   <script src="js/util.js"></script>
-  <script src="js/noise.js"></script>
-  <script src="js/particles.js"></script>
+  <script src="js/path.js"></script>
   <script src="js/pointer.js"></script>
   <script src="js/shapes.js"></script>
-  <script src="js/shape-set.js"></script>
-  <script src="js/palettes.js"></script>
+  <script src="js/shape-library.js"></script>
+  <script src="js/palette.js"></script>
   <script src="js/controls.js"></script>
-  <script src="js/gl/shaders.js"></script>
-  <script src="js/gl/gl-renderer.js"></script>
-  <script src="js/modes/magnet.js"></script>
-  <script src="js/modes/mirror.js"></script>
+  <script src="js/draw.js"></script>
+  <script src="js/texture.js"></script>
+  <script src="js/recorder.js"></script>
+  <script src="js/concepts/magnet.js"></script>
+  <script src="js/concepts/mirror.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

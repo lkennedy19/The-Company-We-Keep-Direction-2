@@ -129,7 +129,8 @@ button, input { font: inherit; color: inherit; }
   overflow: hidden;
   touch-action: none;
 }
-.stage canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+.stage { display: grid; place-items: center; }
+.stage canvas { display: block; cursor: crosshair; }
 .drop-hint {
   position: absolute;
   inset: var(--sp-4);
@@ -270,8 +271,6 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 }
 
 /* ===== Shape set ===== */
-.shape-actions { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-2); margin-top: var(--sp-2); }
-.shape-actions .btn--upload { margin-top: 0; }
 .thumbs {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
@@ -297,34 +296,36 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 .swatches { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-3); }
 .swatch {
   position: relative;
-  width: 32px; height: 32px;
+  width: 44px; height: 32px;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 50%;
-  background: var(--sw-paper);
+  border-radius: var(--radius);
   cursor: pointer;
 }
 .swatch::after {
   content: "";
   position: absolute;
-  inset: 9px;
-  border-radius: 50%;
-  background: var(--sw-ink);
+  inset: 7px;
+  background: linear-gradient(90deg, var(--sw-a) 0 33%, var(--sw-b) 33% 66%, var(--sw-c) 66%);
 }
 .swatch[aria-pressed="true"] { outline: 1px solid var(--fg); outline-offset: 2px; }
+.color-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: var(--sp-3); }
+.color-grid .ctl { margin-top: 0; }
 
-.gl-error {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  margin: 0;
-  padding: var(--sp-5);
-  text-align: center;
-  color: var(--muted);
+/* Dropdowns */
+.ctl--dropdown select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--fg);
+  font-size: var(--fs-sm);
 }
+.group--actions { display: grid; gap: var(--sp-2); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn:disabled:hover { background: none; color: inherit; }
 
-/* Preset row wraps into a grid once it holds more than three choices */
-.seg--wrap { display: grid; grid-template-columns: repeat(3, 1fr); }
-.seg--wrap .seg__btn:nth-child(3n + 1) { border-left: 0; }
-.seg--wrap .seg__btn:nth-child(n + 4) { border-top: 1px solid var(--line); }
+

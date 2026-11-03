@@ -1,33 +1,16 @@
-/* Shape sources (built-in presets, typed words, uploaded SVGs) and the tinted sprite
-   that the renderer stamps across the grid. */
+/* Built-in shapes and the SVG loader. Every shape becomes a white silhouette sprite,
+   which the drawing helpers tint to whatever colour a concept needs. */
 (function (MM) {
   'use strict';
-  var RASTER = 512; // long side of the rasterised shape, in device pixels
-  var WORD_FONT = '700 200px "Helvetica Neue", Helvetica, Arial, sans-serif';
+  var RASTER = 512; // long side of each rasterised shape, in px
 
-  // Each preset suggests a particle spacing and size that suit it
   var presets = {
-    dot: {
-      label: 'Dot',
-      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="#fff"/></svg>',
-      spacing: 11, size: 8
-    },
-    pebble: {
-      label: 'Pebble',
-      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80"><path fill="#fff" d="M46 2c24-2 50 10 53 34 3 22-17 41-45 43C25 81 2 68 1 45-1 21 21 4 46 2z"/></svg>',
-      spacing: 11, size: 9
-    },
-    house: {
-      label: 'House',
-      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path fill="#fff" d="M0 40 50 0l50 40v60H0z"/></svg>',
-      spacing: 15, size: 13
-    },
-    bar: {
-      label: 'Bar',
-      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 22"><rect width="100" height="22" fill="#fff"/></svg>',
-      spacing: 16, size: 16
-    },
-    word: { label: 'Word', word: true, spacing: 44, size: 40 }
+    oval: { label: 'Oval', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100"><ellipse cx="80" cy="50" rx="80" ry="50" fill="#fff"/></svg>' },
+    capsule: { label: 'Capsule', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 220"><rect width="100" height="220" rx="50" fill="#fff"/></svg>' },
+    dot: { label: 'Dot', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="#fff"/></svg>' },
+    pebble: { label: 'Pebble', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80"><path fill="#fff" d="M46 2c24-2 50 10 53 34 3 22-17 41-45 43C25 81 2 68 1 45-1 21 21 4 46 2z"/></svg>' },
+    house: { label: 'House', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path fill="#fff" d="M0 40 50 0l50 40v60H0z"/></svg>' },
+    bar: { label: 'Bar', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 22"><rect width="100" height="22" fill="#fff"/></svg>' }
   };
 
   function sourceFromImage(img, w, h) {
@@ -67,30 +50,7 @@
     });
   }
 
-  // A word set in bold sans, trimmed tight to its ink
-  function wordSource(text) {
-    text = (text || '').trim() || 'KEEP';
-    var probe = document.createElement('canvas').getContext('2d');
-    probe.font = WORD_FONT;
-    var mt = probe.measureText(text);
-    var asc = mt.actualBoundingBoxAscent || 145, desc = mt.actualBoundingBoxDescent || 0;
-    var left = mt.actualBoundingBoxLeft || 0, right = mt.actualBoundingBoxRight || mt.width;
-    var w = Math.max(1, left + right), h = Math.max(1, asc + desc);
-    return {
-      aspect: w / h,
-      draw: function (ctx, cw, ch) {
-        ctx.save();
-        ctx.scale(cw / w, ch / h);
-        ctx.font = WORD_FONT;
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillStyle = '#fff';
-        ctx.fillText(text, left, asc);
-        ctx.restore();
-      }
-    };
-  }
-
-  // Rasterise a source as a white silhouette (colour is applied later, by the palette)
+  // Rasterise a source as a white silhouette
   function makeSprite(source) {
     var a = source.aspect;
     var c = document.createElement('canvas');
@@ -104,5 +64,5 @@
     return { canvas: c, aspect: a };
   }
 
-  MM.shapes = { presets: presets, loadSvg: loadSvg, wordSource: wordSource, makeSprite: makeSprite };
+  MM.shapes = { presets: presets, loadSvg: loadSvg, makeSprite: makeSprite };
 })(window.MM = window.MM || {});

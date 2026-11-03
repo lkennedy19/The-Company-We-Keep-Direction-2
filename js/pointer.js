@@ -1,5 +1,10 @@
-/* The point every mode reacts to. Follows the cursor/touch, wanders on its own, or both
-   (cursor first, wandering after a few idle seconds). */
+/* The point every concept reacts to (the magnet, the object in front of the mirror).
+   Motion options:
+   - 'idle-loop': follows the cursor, and settles back to the concept's home spot after a few idle
+     seconds, where the animation loops seamlessly
+   - 'cursor': follows the cursor only
+   - 'loop': stays at the home spot (use this to record loops)
+   - 'wander': drifts between random spots on its own */
 (function (MM) {
   'use strict';
   var M = MM.math;
@@ -26,10 +31,12 @@
   }
 
   Pointer.prototype.update = function (t, dt, w, h, opts) {
-    if (this.x === null) { this.x = w / 2; this.y = h / 2; this.auto.x = this.x; this.auto.y = this.y; }
+    if (this.x === null) { this.x = opts.home.x; this.y = opts.home.y; this.auto.x = this.x; this.auto.y = this.y; }
 
-    var useAuto = opts.motion === 'auto' ||
-      (opts.motion === 'hybrid' && (!this.hasCursor || t - this.lastMove > IDLE_SECONDS));
+    var idle = !this.hasCursor || t - this.lastMove > IDLE_SECONDS;
+    var atHome = opts.motion === 'loop' || (opts.motion === 'idle-loop' && idle);
+    var useAuto = opts.motion === 'wander';
+    this.atHome = atHome;
 
     if (useAuto && !this.isAuto) {
       // Start wandering from wherever we are now
@@ -38,7 +45,9 @@
     this.isAuto = useAuto;
 
     var tx, ty;
-    if (useAuto) {
+    if (atHome) {
+      tx = opts.home.x; ty = opts.home.y;
+    } else if (useAuto) {
       this.stepAuto(t, w, h, opts.tempo);
       tx = this.auto.x; ty = this.auto.y;
     } else {
