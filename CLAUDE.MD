@@ -11,7 +11,7 @@ Before making **any** change to this codebase:
 
 ## What This App Is
 
-Magnet / Mirror: a static, no-build browser tool for designers that turns physical concepts into animated diagram compositions (flat colour, print grain, seamless loops) built from the user's own SVG shapes. Concepts so far: Magnet (a bar magnet's real field, with module chains flowing along the field loops) and Mirror (plane-mirror geometry: object, reversed image, equal-angle rays, dashed lines to the image). More concepts will be added as modules. Open `index.html` directly or serve the folder statically.
+Magnet / Mirror: a static, no-build browser tool for designers that makes simple, scientifically grounded diagram compositions of physical concepts (flat colour, print grain) from the user's own SVG shapes. Each composition is one idea; nothing follows the cursor or animates on its own; motion comes from the user working the controls, which ease smoothly and can be recorded. Concepts so far: Magnet (Field lines, Compasses) and Mirror (Reflection, Mirror pair, Rays). Open `index.html` directly or serve the folder statically.
 
 ---
 
@@ -28,19 +28,23 @@ Magnet / Mirror: a static, no-build browser tool for designers that turns physic
 ├── css/styles.css          # All styles; design tokens at the top
 └── js/                     # Classic scripts sharing the window.MM namespace (works over file://)
     ├── util.js             # Math + 2x2 matrix helpers
-    ├── path.js             # Arc-length polylines and the accordion warp
-    ├── pointer.js          # Cursor / home-loop / wander target point
+    ├── path.js             # Arc-length polylines
     ├── shapes.js           # Built-in shapes, SVG loader, white silhouette sprite
-    ├── shape-library.js    # Built-ins + uploads; which shape is the module and which the object
+    ├── shape-library.js    # Built-ins + uploads; compositions store which ids they use
     ├── palette.js          # Colour roles and palettes
     ├── controls.js         # Builds settings UI from param specs
-    ├── draw.js             # Tinted shapes, chains along paths, hairlines, fills, arrows
-    ├── texture.js          # Grain, speckle, streaks, frame overlay
-    ├── recorder.js         # Records one loop of the canvas as MP4/WebM
-    ├── app.js              # Tabs, panels, loop clock, layout/formats, export
-    └── concepts/           # One file per concept: { id, label, blurb, params, createState, home, draw }
-        ├── magnet.js
-        └── mirror.js
+    ├── draw.js             # Tinted shapes, hairlines, fills, arrowheads
+    ├── texture.js          # Seeded grain, speckle, streaks, frame overlay
+    ├── recorder.js         # Start/stop canvas recording (MP4/WebM)
+    ├── app.js              # Grouped tabs, panels, easing of controls, layout/formats, export
+    └── concepts/           # Shared physics + one file per composition (pushed onto MM.compositions)
+        ├── magnet-physics.js   # Bar magnet field (end-face charge model), equal-flux seeding, tracing, bar
+        ├── magnet-lines.js
+        ├── magnet-compass.js
+        ├── mirror-optics.js    # Mirror frame, reflection, mirror slab
+        ├── mirror-reflection.js
+        ├── mirror-pair.js
+        └── mirror-rays.js
 ```
 
 ---

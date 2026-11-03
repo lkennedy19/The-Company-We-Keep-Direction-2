@@ -1,11 +1,10 @@
-/* Drawing helpers shared by the concepts: tinted shapes, chains of shapes along paths,
-   hairlines and fills. All coordinates are CSS pixels; MM.draw.dpr is set by the app. */
+/* Drawing helpers shared by the compositions: tinted shapes, hairlines, fills and arrowheads.
+   All coordinates are CSS pixels; MM.draw.dpr is set by the app. */
 (function (MM) {
   'use strict';
-  var M = MM.math, P = MM.path;
+  var M = MM.math;
   var tints = new Map(), mixes = new Map();
   var TIERS = { small: 160, large: 512 };
-  var tmp = [0, 0, 0];
 
   function hexRgb(hex) {
     var n = parseInt(hex.slice(1), 16);
@@ -55,22 +54,6 @@
     ctx.setTransform(d, 0, 0, d, 0, 0);
   }
 
-  // A chain of shapes flowing along a path.
-  // o: { count, phase, bunch, size, item(i), color(u), fade (px at each end), offset (index offset) }
-  function chain(ctx, path, o) {
-    if (!path.len || !o.count) return;
-    for (var i = o.count - 1; i >= 0; i--) {
-      var u = ((i + o.phase) / o.count) % 1;
-      if (u < 0) u += 1;
-      var s = o.warp ? o.warp(u) * path.len : P.bunchWarp(u, o.bunch) * path.len;
-      P.at(path, s, tmp);
-      var k = 1;
-      if (o.fade) k = M.clamp(s / o.fade, 0, 1) * M.clamp((path.len - s) / o.fade, 0, 1);
-      if (k <= 0.02) continue;
-      shape(ctx, o.item(i + (o.offset || 0)), o.color(u), tmp[0], tmp[1], M.rot(tmp[2]), o.size * k);
-    }
-  }
-
   function trace(ctx, pts) {
     ctx.beginPath();
     ctx.moveTo(pts[0], pts[1]);
@@ -108,5 +91,5 @@
     ctx.fill();
   }
 
-  MM.draw = { dpr: 1, mix: mix, shape: shape, chain: chain, hairline: hairline, fill: fill, arrow: arrow };
+  MM.draw = { dpr: 1, mix: mix, shape: shape, hairline: hairline, fill: fill, arrow: arrow };
 })(window.MM = window.MM || {});

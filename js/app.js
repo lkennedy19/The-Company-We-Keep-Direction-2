@@ -1,54 +1,74 @@
-/* Wires it together: concept tabs, settings panel, shapes, colours, the loop clock and recording. */
+/* Wires it together: composition tabs, the settings panel, eased controls, colours, export. */
 (function (MM) {
   'use strict';
-  var concepts = [MM.concepts.magnet, MM.concepts.mirror];
+  var comps = MM.compositions;
+  var GROUPS = [['magnet', 'Magnet'], ['mirror', 'Mirror']];
   var palettes = MM.palette.presets, roles = MM.palette.roles;
+  var FORMATS = { fill: 0, '16:9': 16 / 9, '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16 };
 
   var $ = function (id) { return document.getElementById(id); };
   var canvas = $('canvas'), ctx = canvas.getContext('2d'), stage = $('stage');
 
   // ---------- state ----------
-  var shared = {
-    shapeModule: 'oval', shapeObject: 'capsule',
-    grain: 55, streaks: 30, frameWidth: 6,
-    motion: 'idle-loop', loopLen: 6, follow: 6, tempo: 1,
-    format: 'fill'
-  };
+  var shared = { grain: 55, streaks: 20, frameWidth: 6, format: 'fill', smoothing: 55 };
   roles.forEach(function (r) { shared[r[0]] = palettes[0][r[0]]; });
-  var params = {};
-  concepts.forEach(function (c) { params[c.id] = MM.controls.defaults(c.params); });
 
-  var concept = concepts[0], cstate = {};
-  concepts.forEach(function (c) { cstate[c.id] = c.createState(); });
-  var w = 0, h = 0, dpr = 1, clockStart = performance.now() / 1000, recording = false;
-  var pointer = new MM.Pointer(canvas);
-  var lib = new MM.ShapeLibrary(function () {
-    shared.shapeModule = lib.module; shared.shapeObject = lib.object;
-    buildShapePanel();
+  // target = what the controls say; live = what is drawn, easing toward the target
+  var target = {}, live = {};
+  comps.forEach(function (c) {
+    target[c.id] = MM.controls.defaults(c.params);
+    live[c.id] = Object.assign({}, target[c.id]);
   });
-
-  var FORMATS = { fill: 0, '16:9': 16 / 9, '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16 };
+  var comp = comps[0], dirty = true, recorder = null;
+  var w = 0, h = 0, dpr = 1;
+  var lib = new MM.ShapeLibrary(function () { checkShapes(); buildShapePanel(); dirty = true; });
 
   // ---------- settings specs ----------
-  var shapeSpecs = [
-    { key: 'shapeModule', label: 'Module (repeated element)', type: 'dropdown', options: function () { return lib.options(true); } },
-    { key: 'shapeObject', label: 'Object (in front of the mirror)', type: 'dropdown', options: function () { return lib.options(false); } }
-  ];
   var textureSpecs = [
     { key: 'grain', label: 'Grain', type: 'range', min: 0, max: 100, step: 1, unit: '%' },
     { key: 'streaks', label: 'Streaks', type: 'range', min: 0, max: 100, step: 1, unit: '%' },
     { key: 'frameWidth', label: 'Frame width', type: 'range', min: 0, max: 40, step: 1, unit: 'px' }
   ];
-  var motionSpecs = [
-    { key: 'motion', label: 'Driven by', type: 'dropdown', options: [['idle-loop', 'Cursor, then loop when idle'], ['cursor', 'Cursor only'], ['loop', 'Loop in place'], ['wander', 'Wander on its own']] },
-    { key: 'loopLen', label: 'Loop length', type: 'range', min: 2, max: 16, step: 0.5, unit: 's' },
-    { key: 'tempo', label: 'Wander tempo', type: 'range', min: 0.2, max: 3, step: 0.1, unit: '×', show: function (v) { return v.motion === 'wander'; } },
-    { key: 'follow', label: 'Follow smoothing', type: 'range', min: 1, max: 30, step: 0.5 }
-  ];
   var canvasSpecs = [
-    { key: 'format', label: 'Format', type: 'select', options: [['fill', 'Fill'], ['16:9', '16:9'], ['1:1', '1:1'], ['4:5', '4:5'], ['9:16', '9:16']] }
+    { key: 'format', label: 'Format', type: 'select', options: [['fill', 'Fill'], ['16:9', '16:9'], ['1:1', '1:1'], ['4:5', '4:5'], ['9:16', '9:16']] },
+    { key: 'smoothing', label: 'Transition smoothing', type: 'range', min: 0, max: 100, step: 1, unit: '%' }
   ];
   var colorSpecs = roles.map(function (r) { return { key: r[0], label: r[1], type: 'color' }; });
+
+  function shapeSpecs() {
+    return comp.params.filter(function (s) { return s.type === 'shape'; }).map(function (s) {
+      return { key: s.key, label: s.label, type: 'dropdown', options: function () { return lib.options(s.key === 'module'); } };
+    });
+  }
+  function conceptSpecs() { return comp.params.filter(function (s) { return s.type !== 'shape'; }); }
+
+  // A removed upload falls back to the composition's own default shape
+  function checkShapes() {
+    comps.forEach(function (c) {
+      c.params.forEach(function (s) {
+        if (s.type === 'shape' && !lib.has(target[c.id][s.key])) target[c.id][s.key] = live[c.id][s.key] = s.value;
+      });
+    });
+  }
+
+  // ---------- easing ----------
+  function ease(dt) {
+    var t = target[comp.id], l = live[comp.id], moved = false;
+    var rate = shared.smoothing > 0 ? 40 * Math.pow(1 - shared.smoothing / 100, 2) + 1.2 : 0;
+    var k = rate ? 1 - Math.exp(-rate * dt) : 1;
+    comp.params.forEach(function (s) {
+      var key = s.key;
+      if (s.type !== 'range' || s.snap) {
+        if (l[key] !== t[key]) { l[key] = t[key]; moved = true; }
+        return;
+      }
+      var d = t[key] - l[key];
+      if (d === 0) return;
+      l[key] = Math.abs(d) < (s.max - s.min) * 1e-4 ? t[key] : l[key] + d * k;
+      moved = true;
+    });
+    return moved;
+  }
 
   // ---------- shapes ----------
   function setStatus(msg, isError) {
@@ -59,7 +79,18 @@
 
   function addFiles(files) {
     if (!files || !files.length) return;
-    lib.addFiles(files).then(function (r) { setStatus(r.message, r.error); });
+    lib.addFiles(files).then(function (r) {
+      if (r.added.length) {
+        comp.params.forEach(function (s) {
+          if (s.type !== 'shape') return;
+          var id = s.key === 'module' && lib.uploads().length > 1 ? 'mix' : r.added[0];
+          target[comp.id][s.key] = live[comp.id][s.key] = id;
+        });
+        buildShapePanel();
+        dirty = true;
+      }
+      setStatus(r.message, r.error);
+    });
   }
 
   function drawThumb(c, item) {
@@ -78,9 +109,11 @@
   }
 
   function buildShapePanel() {
-    MM.controls.build($('shapeParams'), shapeSpecs, shared, function (key) {
-      if (key === 'shapeModule') lib.module = shared.shapeModule;
-      if (key === 'shapeObject') lib.object = shared.shapeObject;
+    var specs = shapeSpecs();
+    $('shapeGroup').hidden = !specs.length;
+    MM.controls.build($('shapeParams'), specs, target[comp.id], function (key) {
+      live[comp.id][key] = target[comp.id][key];
+      dirty = true;
     });
     var list = $('uploadList');
     list.innerHTML = '';
@@ -132,47 +165,56 @@
     document.documentElement.style.setProperty('--stage-bg', shared.ground);
     renderPalettes();
     buildShapePanel();
+    dirty = true;
   }
 
-  function buildColorPanel() {
-    MM.controls.build($('colorParams'), colorSpecs, shared, colorsChanged);
-  }
+  function buildColorPanel() { MM.controls.build($('colorParams'), colorSpecs, shared, colorsChanged); }
 
   // ---------- panels ----------
   function buildSharedPanels() {
-    buildShapePanel();
     buildColorPanel();
-    MM.controls.build($('textureParams'), textureSpecs, shared, function () {});
-    MM.controls.build($('motionParams'), motionSpecs, shared, function () {});
-    MM.controls.build($('canvasParams'), canvasSpecs, shared, function () { layout(); });
+    MM.controls.build($('textureParams'), textureSpecs, shared, function () { dirty = true; });
+    MM.controls.build($('canvasParams'), canvasSpecs, shared, function (key) { if (key === 'format') layout(); });
   }
 
-  function buildConceptPanel() {
-    $('conceptTitle').textContent = concept.label;
-    $('conceptBlurb').textContent = concept.blurb;
-    MM.controls.build($('conceptParams'), concept.params, params[concept.id], function () {});
+  function buildCompPanel() {
+    $('compTitle').textContent = comp.label;
+    $('compBlurb').textContent = comp.blurb;
+    MM.controls.build($('compParams'), conceptSpecs(), target[comp.id], function () { dirty = true; });
+    buildShapePanel();
   }
 
   function renderTabs() {
     var nav = $('tabs');
     nav.innerHTML = '';
-    concepts.forEach(function (c) {
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'tab';
-      b.setAttribute('role', 'tab');
-      b.setAttribute('aria-selected', String(c === concept));
-      b.textContent = c.label;
-      b.addEventListener('click', function () { setConcept(c); });
-      nav.appendChild(b);
+    GROUPS.forEach(function (g) {
+      var wrap = document.createElement('div');
+      wrap.className = 'tabgroup';
+      var lab = document.createElement('span');
+      lab.className = 'tabgroup__label';
+      lab.textContent = g[1];
+      wrap.appendChild(lab);
+      comps.filter(function (c) { return c.group === g[0]; }).forEach(function (c) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'tab';
+        b.setAttribute('role', 'tab');
+        b.setAttribute('aria-selected', String(c === comp));
+        b.textContent = c.label;
+        b.addEventListener('click', function () { setComp(c); });
+        wrap.appendChild(b);
+      });
+      nav.appendChild(wrap);
     });
   }
 
-  function setConcept(c) {
-    concept = c;
+  function setComp(c) {
+    comp = c;
     renderTabs();
-    buildConceptPanel();
-    try { localStorage.setItem('mm-concept', c.id); } catch (e) { /* storage unavailable */ }
+    buildCompPanel();
+    setStatus('');
+    dirty = true;
+    try { localStorage.setItem('mm-comp', c.id); } catch (e) { /* storage unavailable */ }
   }
 
   // ---------- layout ----------
@@ -189,30 +231,27 @@
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
     MM.draw.dpr = dpr;
+    dirty = true;
   }
 
-  // ---------- frame ----------
-  var last = performance.now() / 1000;
-  function frame(now) {
-    var t = now / 1000, dt = Math.min(0.05, Math.max(0, t - last));
-    last = t;
-    var p = params[concept.id];
-    pointer.update(t, dt, w, h, {
-      motion: recording ? 'loop' : shared.motion, tempo: shared.tempo, follow: shared.follow,
-      home: concept.home(w, h, p)
-    });
-    var clock = t - clockStart;
-    var env = {
-      w: w, h: h, unit: Math.min(w, h), diag: Math.hypot(w, h), t: clock, dt: dt,
-      phase: (clock / shared.loopLen) % 1, tx: pointer.x, ty: pointer.y
-    };
-
+  // ---------- render ----------
+  function render() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = shared.ground;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (lib.ready()) concept.draw(ctx, env, p, cstate[concept.id], lib, shared);
+    if (lib.ready()) {
+      comp.draw(ctx, { w: w, h: h, unit: Math.min(w, h), diag: Math.hypot(w, h) }, live[comp.id], lib, shared);
+    }
     MM.texture.draw(ctx, dpr, { grain: shared.grain / 100, streaks: shared.streaks / 100, frame: shared.frameWidth, frameColor: shared.frame });
+  }
+
+  var last = performance.now() / 1000;
+  function frame(now) {
+    var t = now / 1000, dt = Math.min(0.05, Math.max(0, t - last));
+    last = t;
+    if (ease(dt)) dirty = true;
+    if (dirty || recorder) { render(); dirty = false; }
     requestAnimationFrame(frame);
   }
 
@@ -227,33 +266,34 @@
 
   var saveBtn = $('savePng'); // absent where downloads are not allowed
   if (saveBtn) saveBtn.addEventListener('click', function () {
-    canvas.toBlob(function (blob) { download(blob, concept.id + '-' + Date.now() + '.png'); });
+    canvas.toBlob(function (blob) { download(blob, comp.id + '-' + Date.now() + '.png'); });
   });
 
-  var recBtn = $('recordLoop');
+  var recBtn = $('record');
   if (recBtn) {
     if (!MM.recorder.supported()) {
       recBtn.disabled = true;
       recBtn.textContent = 'Recording not supported here';
     }
     recBtn.addEventListener('click', function () {
-      if (recording) return;
-      recording = true;
+      if (!recorder) {
+        try { recorder = MM.recorder.start(canvas, 60); } catch (err) { recBtn.textContent = err.message; return; }
+        recBtn.textContent = 'Stop and save recording';
+        recBtn.classList.add('is-recording');
+        return;
+      }
+      var r = recorder;
+      recorder = null;
       recBtn.disabled = true;
-      // Settle at the home spot first, then restart the loop clock so the file starts at phase 0
-      setTimeout(function () {
-        clockStart = performance.now() / 1000;
-        recBtn.textContent = 'Recording ' + shared.loopLen + ' s…';
-        MM.recorder.record(canvas, shared.loopLen, 60).then(function (r) {
-          download(r.blob, concept.id + '-loop.' + r.ext);
-          recBtn.textContent = 'Saved. Record again';
-        }).catch(function (err) {
-          recBtn.textContent = err.message;
-        }).then(function () {
-          recording = false;
-          recBtn.disabled = false;
-        });
-      }, 900);
+      r.stop().then(function (res) {
+        download(res.blob, comp.id + '-' + Date.now() + '.' + res.ext);
+        recBtn.textContent = 'Start recording';
+      }).catch(function (err) {
+        recBtn.textContent = err.message;
+      }).then(function () {
+        recBtn.disabled = false;
+        recBtn.classList.remove('is-recording');
+      });
     });
   }
 
@@ -284,13 +324,12 @@
     $('panelToggle').setAttribute('aria-expanded', 'true');
   }
   var saved = null;
-  try { saved = localStorage.getItem('mm-concept'); } catch (e) { /* storage unavailable */ }
-  concept = concepts.filter(function (c) { return c.id === saved; })[0] || concepts[0];
+  try { saved = localStorage.getItem('mm-comp'); } catch (e) { /* storage unavailable */ }
+  comp = comps.filter(function (c) { return c.id === saved; })[0] || comps[0];
 
   renderTabs();
-  buildConceptPanel();
+  buildCompPanel();
   buildSharedPanels();
-  renderPalettes();
   layout();
   colorsChanged();
   requestAnimationFrame(frame);

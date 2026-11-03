@@ -329,3 +329,10 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 .btn:disabled:hover { background: none; color: inherit; }
 
 
+
+/* ===== Grouped tabs ===== */
+.tabgroup { flex: none; display: flex; align-items: center; gap: var(--sp-1); }
+.tabgroup + .tabgroup { margin-left: var(--sp-3); padding-left: var(--sp-3); border-left: 1px solid var(--line); }
+.tabgroup__label { padding-right: var(--sp-1); color: var(--fg); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; }
+.tabgroup .tab { text-transform: none; letter-spacing: 0.02em; }
+.btn.is-recording { background: var(--error); border-color: var(--error); color: var(--bg); }

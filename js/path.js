@@ -29,10 +29,5 @@
     return out;
   }
 
-  // Accordion warp: 0..1 → 0..1, packing elements toward both ends as `bunch` rises (0..0.95)
-  function bunchWarp(u, bunch) {
-    return u - bunch * Math.sin(2 * Math.PI * u) / (2 * Math.PI);
-  }
-
-  MM.path = { measure: measure, at: at, bunchWarp: bunchWarp };
+  MM.path = { measure: measure, at: at };
 })(window.MM = window.MM || {});

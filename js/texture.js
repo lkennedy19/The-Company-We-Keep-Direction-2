@@ -1,36 +1,42 @@
-/* Print / video texture laid over each frame: animated grain, light speckle, faint horizontal
-   streaks, and the inset frame from the reference. */
+/* Print / video texture laid over each frame: grain, light speckle, faint horizontal streaks and
+   the inset frame from the reference. It is fixed (seeded), so a still composition stays still. */
 (function (MM) {
   'use strict';
   var SIZE = 256, grain = null, speck = null;
 
-  function noiseCanvas(fn) {
-    var c = document.createElement('canvas');
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function noiseCanvas(seed, fn) {
+    var rand = mulberry32(seed), c = document.createElement('canvas');
     c.width = c.height = SIZE;
     var g = c.getContext('2d'), img = g.createImageData(SIZE, SIZE), d = img.data;
-    for (var i = 0; i < d.length; i += 4) fn(d, i);
+    for (var i = 0; i < d.length; i += 4) fn(d, i, rand);
     g.putImageData(img, 0, 0);
     return c;
   }
 
   function init(ctx) {
-    var gc = noiseCanvas(function (d, i) {
-      var v = Math.random() * 255;
+    grain = ctx.createPattern(noiseCanvas(7, function (d, i, r) {
+      var v = r() * 255;
       d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255;
-    });
-    var sc = noiseCanvas(function (d, i) {
-      var on = Math.random() < 0.012;
-      d[i] = d[i + 1] = d[i + 2] = 255; d[i + 3] = on ? 90 + Math.random() * 120 : 0;
-    });
-    grain = ctx.createPattern(gc, 'repeat');
-    speck = ctx.createPattern(sc, 'repeat');
+    }), 'repeat');
+    speck = ctx.createPattern(noiseCanvas(11, function (d, i, r) {
+      var on = r() < 0.012;
+      d[i] = d[i + 1] = d[i + 2] = 255; d[i + 3] = on ? 90 + r() * 120 : 0;
+    }), 'repeat');
   }
 
   function patternFill(ctx, pat, W, H, scale) {
-    var ox = Math.random() * SIZE, oy = Math.random() * SIZE;
-    ctx.setTransform(scale, 0, 0, scale, -ox * scale, -oy * scale);
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
     ctx.fillStyle = pat;
-    ctx.fillRect(ox, oy, W / scale, H / scale);
+    ctx.fillRect(0, 0, W / scale, H / scale);
   }
 
   // o: { grain 0..1, streaks 0..1, frame (css px), frameColor }
@@ -49,11 +55,12 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (o.streaks > 0) {
       ctx.globalCompositeOperation = 'source-over';
-      var n = Math.round(o.streaks * 7);
+      var rand = mulberry32(23), n = Math.round(o.streaks * 7);
       for (var i = 0; i < n; i++) {
-        ctx.globalAlpha = (0.03 + Math.random() * 0.08) * o.streaks;
-        ctx.fillStyle = Math.random() < 0.5 ? '#ffffff' : '#000000';
-        ctx.fillRect(0, Math.random() * H, W, Math.max(1, dpr * (0.5 + Math.random() * 1.5)));
+        var y = rand(), a = rand(), light = rand() < 0.5, thick = rand();
+        ctx.globalAlpha = (0.03 + a * 0.08) * o.streaks;
+        ctx.fillStyle = light ? '#ffffff' : '#000000';
+        ctx.fillRect(0, y * H, W, Math.max(1, dpr * (0.5 + thick * 1.5)));
       }
     }
     if (o.frame > 0) {

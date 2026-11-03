@@ -4,12 +4,12 @@ Legend: 🟡 in progress / awaiting review · ~~done~~ (approved)
 
 ## Now
 
-- 🟡 **Magnet / Mirror v3 — diagram concepts** (after the physics diagrams and the animated three-panel reference)
-  - 🟡 Concept system: one module per concept in `js/concepts/`, shared drawing, texture, palette and recording
-  - 🟡 Magnet: real two-pole field, traced loops with flowing module chains (accordion), solid field fill, flare hairlines, red→grey bar
-  - 🟡 Mirror: plane-mirror geometry, reversed image at equal distance, echo accordion, equal-angle rays carrying the module, dashed lines to the image
-  - 🟡 Loop clock + seamless loop recording (MP4/WebM), PNG export, canvas formats
-  - Explored and rejected: v1 rigid grid modes; v2 organic particle / goo engine (liked the art direction, but it did not represent the concepts)
+- 🟡 **Magnet / Mirror v4 — simple, accurate compositions** (one idea per composition, after the four reference panels)
+  - 🟡 Magnet physics: uniformly magnetised bar (end-face charge, 3D sum); equal-flux field lines
+  - 🟡 Magnet · Field lines (bands / solid / lines) and Magnet · Compasses (needle grid, north tint)
+  - 🟡 Mirror · Reflection, Mirror · Mirror pair (repeated images), Mirror · Rays (reflection law, dashed lines to image)
+  - 🟡 No cursor or built-in animation: controls ease smoothly; start/stop canvas recording; PNG
+  - Explored and rejected: v3 combined diagrams with built-in loops and cursor following (too busy; motion not physical)
 
 ## Next
 
@@ -20,6 +20,7 @@ Legend: 🟡 in progress / awaiting review · ~~done~~ (approved)
 ## Backlog
 
 - GIF export (video export exists)
+- Mirror: two mirrors at an angle (images arranged around a circle)
 - Save and share presets (all settings as JSON or URL)
 - Multiple magnets
 - Keep uploaded SVG colours (shapes are currently silhouettes tinted by the palette)
